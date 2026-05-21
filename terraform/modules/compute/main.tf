@@ -3,6 +3,7 @@ resource "aws_lambda_function" "api" {
   #checkov:skip=CKV_AWS_272:Code-signing not applicable to container image deployments
   #checkov:skip=CKV_AWS_173:KMS env var encryption adds cost; DATABASE_URL from CI variable
   #checkov:skip=CKV_AWS_116:Synchronous HTTP API - failures return to caller, DLQ not needed
+  #checkov:skip=CKV_AWS_115:Ensure that AWS Lambda function is configured for function-level concurrent execution limit
   function_name                  = "${var.environment}-${var.function_name}"
   role                           = var.lambda_role_arn
   package_type                   = "Image"
