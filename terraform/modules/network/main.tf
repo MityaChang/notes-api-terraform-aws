@@ -2,6 +2,8 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+#checkov:skip=CKV2_AWS_12:Default SG not used; Lambda and RDS use dedicated security groups
+#checkov:skip=CKV2_AWS_11:VPC flow logging adds cost; not required for dev
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
@@ -25,6 +27,7 @@ resource "aws_subnet" "private" {
   }
 }
 
+#checkov:skip=CKV2_AWS_5:SG is attached to Lambda via compute module cross-reference
 resource "aws_security_group" "lambda" {
   name_prefix = "${var.environment}-lambda-"
   vpc_id      = aws_vpc.main.id
@@ -52,6 +55,7 @@ resource "aws_security_group" "lambda" {
   }
 }
 
+#checkov:skip=CKV2_AWS_5:SG is attached to RDS via storage module cross-reference
 resource "aws_security_group" "rds" {
   name_prefix = "${var.environment}-rds-"
   vpc_id      = aws_vpc.main.id

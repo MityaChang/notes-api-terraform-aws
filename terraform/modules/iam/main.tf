@@ -17,6 +17,8 @@ resource "aws_iam_role" "lambda" {
   }
 }
 
+#checkov:skip=CKV_AWS_111:EC2 ENI actions require wildcard resource - AWS Lambda VPC limitation
+#checkov:skip=CKV_AWS_356:EC2 ENI and ECR auth actions require wildcard - AWS Lambda VPC limitation
 data "aws_iam_policy_document" "lambda_permissions" {
   # VPC access (create/delete ENIs)
   statement {
@@ -49,6 +51,15 @@ data "aws_iam_policy_document" "lambda_permissions" {
   # ECR auth token (required for image pull, must be *)
   statement {
     actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  # X-Ray tracing
+  statement {
+    actions = [
+      "xray:PutTraceSegments",
+      "xray:PutTelemetryRecords",
+    ]
     resources = ["*"]
   }
 }

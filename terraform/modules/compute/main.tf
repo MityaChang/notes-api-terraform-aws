@@ -1,11 +1,15 @@
 # Lambda Function
+#checkov:skip=CKV_AWS_272:Code-signing not applicable to container image deployments
+#checkov:skip=CKV_AWS_173:KMS env var encryption adds cost; DATABASE_URL from CI variable
+#checkov:skip=CKV_AWS_116:Synchronous HTTP API - failures return to caller, DLQ not needed
 resource "aws_lambda_function" "api" {
-  function_name = "${var.environment}-${var.function_name}"
-  role          = var.lambda_role_arn
-  package_type  = "Image"
-  image_uri     = "${var.ecr_repo_url}:${var.image_tag}"
-  timeout       = var.timeout
-  memory_size   = var.memory_size
+  function_name                  = "${var.environment}-${var.function_name}"
+  role                           = var.lambda_role_arn
+  package_type                   = "Image"
+  image_uri                      = "${var.ecr_repo_url}:${var.image_tag}"
+  timeout                        = var.timeout
+  memory_size                    = var.memory_size
+  reserved_concurrent_executions = var.reserved_concurrency
 
   vpc_config {
     subnet_ids         = var.subnet_ids
@@ -17,6 +21,10 @@ resource "aws_lambda_function" "api" {
       DATABASE_URL = var.database_url
       LOG_LEVEL    = var.log_level
     }
+  }
+
+  tracing_config {
+    mode = "Active"
   }
 
   tags = {
@@ -41,6 +49,7 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
+#checkov:skip=CKV_AWS_309:Simple open CRUD API per requirements; auth adds scope
 resource "aws_apigatewayv2_route" "default" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "$default"

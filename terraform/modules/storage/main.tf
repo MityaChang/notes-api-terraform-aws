@@ -8,6 +8,12 @@ resource "aws_db_subnet_group" "main" {
   }
 }
 
+#checkov:skip=CKV_AWS_118:Enhanced monitoring adds cost; not needed for dev
+#checkov:skip=CKV_AWS_353:Performance insights adds cost for extended retention
+#checkov:skip=CKV_AWS_293:Deletion protection intentionally disabled for dev teardown
+#checkov:skip=CKV_AWS_157:Multi-AZ doubles cost; single-AZ acceptable for dev
+#checkov:skip=CKV_AWS_161:IAM auth adds complexity; password auth via CI variable sufficient for dev
+#checkov:skip=CKV2_AWS_30:Query logging requires parameter group; out of scope for dev
 resource "aws_db_instance" "main" {
   identifier = "${var.environment}-notes-db"
 
@@ -27,6 +33,8 @@ resource "aws_db_instance" "main" {
   vpc_security_group_ids = [var.security_group_id]
   publicly_accessible    = false
   multi_az               = false
+  auto_minor_version_upgrade = true
+  copy_tags_to_snapshot      = true
 
   enabled_cloudwatch_logs_exports = ["postgresql"]
 
