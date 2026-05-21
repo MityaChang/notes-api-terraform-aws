@@ -71,8 +71,6 @@ build-image:
     - cd $APP_DIR
     - docker build -t $ECR_REPO_URL:$CI_COMMIT_SHORT_SHA .
     - docker push $ECR_REPO_URL:$CI_COMMIT_SHORT_SHA
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # --- Plan Stage ---
 
@@ -90,8 +88,6 @@ terraform-plan:
     paths:
       - $TF_DIR/tfplan
     expire_in: 7 days
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # --- Deploy Stage ---
 
@@ -108,5 +104,4 @@ terraform-apply:
   dependencies:
     - terraform-plan
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      when: manual
+    - when: manual
