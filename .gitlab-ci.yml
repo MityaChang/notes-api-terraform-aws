@@ -9,6 +9,7 @@ variables:
   APP_DIR: app
   TF_IN_AUTOMATION: "true"
   AWS_DEFAULT_REGION: ap-southeast-1
+  TF_VAR_provider_arn: $PROVIDER
 
 # OIDC role assumption for AWS — requires CI variable ROLE_ARN
 .aws_oidc: &aws_oidc

@@ -21,3 +21,8 @@ variable "app_image_tag" {
   type        = string
   default     = "latest"
 }
+
+variable "provider_arn" {
+  description = "IAM role ARN for the OIDC provider"
+  type        = string
+}

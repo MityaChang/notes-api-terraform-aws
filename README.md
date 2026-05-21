@@ -16,14 +16,14 @@ ECR (container registry) ← GitLab CI (build + push)
 
 ## Technology Choices
 
-| Component | Choice | Why |
-|-----------|--------|-----|
-| Language | Python 3.11 + FastAPI | Lightweight, excellent Lambda support via Mangum |
-| Compute | Lambda + API Gateway (HTTP API) | Serverless, pay-per-request, zero idle cost |
-| Database | RDS PostgreSQL (db.t3.micro) | Relational, encrypted at rest, free-tier eligible |
-| Deployment | Container image → ECR → Lambda | Reproducible builds, satisfies container artifact requirement |
-| IaC | Terraform (modular) | Separate modules for network, compute, storage, IAM, logging |
-| CI/CD | GitLab CI | Plan artifact + manual deploy, no auto-apply |
+| Component  | Choice                          | Why                                                           |
+| ---------- | ------------------------------- | ------------------------------------------------------------- |
+| Language   | Python 3.11 + FastAPI           | Lightweight, excellent Lambda support via Mangum              |
+| Compute    | Lambda + API Gateway (HTTP API) | Serverless, pay-per-request, zero idle cost                   |
+| Database   | RDS PostgreSQL (db.t3.micro)    | Relational, encrypted at rest, free-tier eligible             |
+| Deployment | Container image → ECR → Lambda  | Reproducible builds, satisfies container artifact requirement |
+| IaC        | Terraform (modular)             | Separate modules for network, compute, storage, IAM, logging  |
+| CI/CD      | GitLab CI                       | Plan artifact + manual deploy, no auto-apply                  |
 
 ## Prerequisites
 
@@ -67,6 +67,7 @@ uvicorn app.main:app --reload --port 8000
 ### First-Time Setup
 
 1. **Deploy infrastructure (creates ECR + all resources):**
+
    ```bash
    cd terraform/environments/dev
    terraform init
@@ -74,6 +75,7 @@ uvicorn app.main:app --reload --port 8000
    ```
 
 2. **Build and push initial image:**
+
    ```bash
    ECR_URL=$(terraform output -raw ecr_repo_url)
    aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin $ECR_URL
@@ -83,6 +85,7 @@ uvicorn app.main:app --reload --port 8000
    ```
 
 3. **Update Lambda to use the image:**
+
    ```bash
    cd ../terraform/environments/dev
    terraform apply
@@ -107,23 +110,25 @@ The GitLab CI pipeline runs automatically on push to the default branch:
 
 Configure these in GitLab → Settings → CI/CD → Variables:
 
-| Variable | Type | Description |
-|----------|------|-------------|
-| `AWS_ACCESS_KEY_ID` | Variable | AWS IAM access key |
-| `AWS_SECRET_ACCESS_KEY` | Variable (masked) | AWS IAM secret key |
-| `AWS_DEFAULT_REGION` | Variable | Target region (e.g., `eu-west-1`) |
-| `TF_VAR_db_password` | Variable (masked) | RDS master password |
-| `ECR_REPO_URL` | Variable | ECR repository URL (from Terraform output) |
+| Variable                | Type              | Description                                |
+| ----------------------- | ----------------- | ------------------------------------------ |
+| `AWS_ACCESS_KEY_ID`     | Variable          | AWS IAM access key                         |
+| `AWS_SECRET_ACCESS_KEY` | Variable (masked) | AWS IAM secret key                         |
+| `AWS_DEFAULT_REGION`    | Variable          | Target region (e.g., `eu-west-1`)          |
+| `TF_VAR_db_password`    | Variable (masked) | RDS master password                        |
+| `ECR_REPO_URL`          | Variable          | ECR repository URL (from Terraform output) |
 
 ## Verifying the System
 
 After deployment, get the API URL:
+
 ```bash
 cd terraform/environments/dev
 API_URL=$(terraform output -raw api_url)
 ```
 
 Test the endpoints:
+
 ```bash
 # Health check
 curl $API_URL/health
@@ -150,11 +155,11 @@ curl -X DELETE $API_URL/notes/<note-id>
 
 ## Where to Find Logs
 
-| Log Type | Location |
-|----------|----------|
-| Application logs | CloudWatch → `/aws/lambda/dev-notes-api` |
-| API Gateway access logs | CloudWatch → `/aws/apigateway/dev-notes-api` |
-| RDS PostgreSQL logs | CloudWatch → `/aws/rds/instance/dev-notes-db/postgresql` |
+| Log Type                | Location                                                 |
+| ----------------------- | -------------------------------------------------------- |
+| Application logs        | CloudWatch → `/aws/lambda/dev-notes-api`                 |
+| API Gateway access logs | CloudWatch → `/aws/apigateway/dev-notes-api`             |
+| RDS PostgreSQL logs     | CloudWatch → `/aws/rds/instance/dev-notes-db/postgresql` |
 
 All log groups have a **30-day retention** period.
 

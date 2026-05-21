@@ -1,9 +1,9 @@
 # Remote state on S3 with DynamoDB locking
 terraform {
   backend "s3" {
-    bucket         = "notes-api-tf-state-760638704957"
+    bucket         = "notes-api-tf-state-ap-southeast-1"
     key            = "dev/terraform.tfstate"
-    region         = "us-east-1"
+    region         = "ap-southeast-1"
     dynamodb_table = "terraform-state-lock"
     encrypt        = true
   }
