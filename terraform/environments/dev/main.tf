@@ -19,8 +19,8 @@ locals {
 }
 
 # ECR Repository (defined here to avoid circular dependency between IAM and compute)
-#checkov:skip=CKV_AWS_136:AWS AES-256 default encryption sufficient for dev; KMS adds cost
 resource "aws_ecr_repository" "app" {
+  #checkov:skip=CKV_AWS_136:AWS AES-256 default encryption sufficient for dev; KMS adds cost
   name                 = "${var.environment}-${local.function_name}"
   image_tag_mutability = "IMMUTABLE"
   force_delete         = true

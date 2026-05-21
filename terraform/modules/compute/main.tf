@@ -1,8 +1,8 @@
 # Lambda Function
-#checkov:skip=CKV_AWS_272:Code-signing not applicable to container image deployments
-#checkov:skip=CKV_AWS_173:KMS env var encryption adds cost; DATABASE_URL from CI variable
-#checkov:skip=CKV_AWS_116:Synchronous HTTP API - failures return to caller, DLQ not needed
 resource "aws_lambda_function" "api" {
+  #checkov:skip=CKV_AWS_272:Code-signing not applicable to container image deployments
+  #checkov:skip=CKV_AWS_173:KMS env var encryption adds cost; DATABASE_URL from CI variable
+  #checkov:skip=CKV_AWS_116:Synchronous HTTP API - failures return to caller, DLQ not needed
   function_name                  = "${var.environment}-${var.function_name}"
   role                           = var.lambda_role_arn
   package_type                   = "Image"
@@ -49,8 +49,8 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
-#checkov:skip=CKV_AWS_309:Simple open CRUD API per requirements; auth adds scope
 resource "aws_apigatewayv2_route" "default" {
+  #checkov:skip=CKV_AWS_309:Simple open CRUD API per requirements; auth adds scope
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "$default"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
