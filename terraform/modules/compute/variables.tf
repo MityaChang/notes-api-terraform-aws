@@ -69,8 +69,8 @@ variable "timeout" {
   default     = 30
 }
 
-variable "reserved_concurrency" {
-  description = "Reserved concurrent executions for Lambda"
-  type        = number
-  default     = 5
-}
+# variable "reserved_concurrency" {
+#   description = "Reserved concurrent executions for Lambda"
+#   type        = number
+#   default     = 5
+# }

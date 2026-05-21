@@ -9,7 +9,7 @@ resource "aws_lambda_function" "api" {
   image_uri                      = "${var.ecr_repo_url}:${var.image_tag}"
   timeout                        = var.timeout
   memory_size                    = var.memory_size
-  reserved_concurrent_executions = var.reserved_concurrency
+  #reserved_concurrent_executions = var.reserved_concurrency
 
   vpc_config {
     subnet_ids         = var.subnet_ids
