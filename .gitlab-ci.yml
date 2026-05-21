@@ -10,6 +10,7 @@ variables:
   TF_IN_AUTOMATION: "true"
   AWS_DEFAULT_REGION: ap-southeast-1
   TF_VAR_provider_arn: $PROVIDER
+  ECR_REPO_URL: 760638704957.dkr.ecr.ap-southeast-1.amazonaws.com/fullstack/terraform
 
 # OIDC role assumption for AWS - requires CI variable ROLE_ARN
 .aws_oidc:
