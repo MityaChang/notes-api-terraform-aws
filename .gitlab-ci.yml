@@ -10,7 +10,6 @@ variables:
   TF_IN_AUTOMATION: "true"
   AWS_DEFAULT_REGION: ap-southeast-1
   TF_VAR_provider_arn: $PROVIDER
-  ECR_REPO_URL: 760638704957.dkr.ecr.ap-southeast-1.amazonaws.com/dev-notes-api
 
 # OIDC role assumption for AWS - requires CI variable ROLE_ARN
 .aws_oidc:
@@ -58,6 +57,24 @@ python-lint:
     - cd $APP_DIR
     - ruff check .
 
+# Security: Python SAST (bandit) and dependency vulnerability scan (pip-audit)
+python-security:
+  stage: validate
+  image: python:3.11-slim
+  script:
+    - pip install bandit pip-audit
+    - cd $APP_DIR
+    - bandit -r . -x ./.venv --severity-level medium
+    - pip-audit -r requirements.txt
+
+# Security: Terraform misconfiguration scan (checkov)
+terraform-security:
+  stage: validate
+  image: python:3.11-slim
+  script:
+    - pip install checkov
+    - checkov -d terraform --quiet --compact
+
 # --- Build Stage ---
 
 build-image:
@@ -82,10 +99,42 @@ build-image:
       --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]"
       --output text))
   script:
+    - ECR_REPO_URL="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}"
     - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
     - cd $APP_DIR
     - docker build -t $ECR_REPO_URL:$CI_COMMIT_SHORT_SHA .
     - docker push $ECR_REPO_URL:$CI_COMMIT_SHORT_SHA
+
+# Security: Container image vulnerability scan (trivy)
+container-security:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+  before_script:
+    - apk add --no-cache --upgrade expat aws-cli curl
+    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+    - >
+      export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s"
+      $(aws sts assume-role-with-web-identity
+      --role-arn $PROVIDER
+      --role-session-name "gitlab-ci-${CI_PROJECT_ID}-${CI_PIPELINE_ID}"
+      --web-identity-token $GITLAB_OIDC_TOKEN
+      --duration-seconds 3600
+      --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]"
+      --output text))
+  script:
+    - ECR_REPO_URL="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}"
+    - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL --no-progress $ECR_REPO_URL:$CI_COMMIT_SHORT_SHA
+  needs:
+    - build-image
+  allow_failure: true
 
 # --- Plan Stage ---
 
@@ -102,6 +151,7 @@ terraform-plan:
   artifacts:
     paths:
       - $TF_DIR/tfplan
+      - $TF_DIR/.terraform.lock.hcl
     expire_in: 7 days
 
 # --- Deploy Stage ---

@@ -38,6 +38,14 @@ resource "aws_security_group" "lambda" {
     description = "Allow outbound to RDS"
   }
 
+  egress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTPS for CloudWatch, ECR, and AWS APIs"
+  }
+
   tags = {
     Name        = "${var.environment}-lambda-sg"
     Environment = var.environment

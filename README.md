@@ -78,7 +78,7 @@ uvicorn app.main:app --reload --port 8000
 
    ```bash
    ECR_URL=$(terraform output -raw ecr_repo_url)
-   aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin $ECR_URL
+   aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin $ECR_URL
    cd ../../../app
    docker build -t $ECR_URL:latest .
    docker push $ECR_URL:latest
@@ -110,13 +110,12 @@ The GitLab CI pipeline runs automatically on push to the default branch:
 
 Configure these in GitLab → Settings → CI/CD → Variables:
 
-| Variable                | Type              | Description                                |
-| ----------------------- | ----------------- | ------------------------------------------ |
-| `AWS_ACCESS_KEY_ID`     | Variable          | AWS IAM access key                         |
-| `AWS_SECRET_ACCESS_KEY` | Variable (masked) | AWS IAM secret key                         |
-| `AWS_DEFAULT_REGION`    | Variable          | Target region (e.g., `eu-west-1`)          |
-| `TF_VAR_db_password`    | Variable (masked) | RDS master password                        |
-| `ECR_REPO_URL`          | Variable          | ECR repository URL (from Terraform output) |
+| Variable             | Type              | Description                                           |
+| -------------------- | ----------------- | ----------------------------------------------------- |
+| `PROVIDER`           | Variable          | IAM role ARN for OIDC-based AWS credential assumption |
+| `AWS_ACCOUNT_ID`     | Variable          | AWS account ID (e.g., `760638704957`)                 |
+| `ECR_REPO_NAME`      | Variable          | ECR repository name (e.g., `dev-notes-api`)           |
+| `TF_VAR_db_password` | Variable (masked) | RDS master password                                   |
 
 ## Verifying the System
 
