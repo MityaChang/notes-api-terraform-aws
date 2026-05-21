@@ -31,14 +31,18 @@ variables:
 
 terraform-fmt:
   stage: validate
-  image: hashicorp/terraform:1.5
+  image:
+    name: hashicorp/terraform:1.5
+    entrypoint: [""]
   script:
     - cd $TF_DIR
     - terraform fmt -check -recursive ../..
 
 terraform-validate:
   stage: validate
-  image: hashicorp/terraform:1.5
+  image:
+    name: hashicorp/terraform:1.5
+    entrypoint: [""]
   script:
     - cd $TF_DIR
     - terraform init -backend=false
@@ -74,7 +78,9 @@ build-image:
 
 terraform-plan:
   stage: plan
-  image: hashicorp/terraform:1.5
+  image:
+    name: hashicorp/terraform:1.5
+    entrypoint: [""]
   extends: .aws_oidc
   script:
     - cd $TF_DIR
@@ -91,7 +97,9 @@ terraform-plan:
 
 terraform-apply:
   stage: deploy
-  image: hashicorp/terraform:1.5
+  image:
+    name: hashicorp/terraform:1.5
+    entrypoint: [""]
   extends: .aws_oidc
   script:
     - cd $TF_DIR
