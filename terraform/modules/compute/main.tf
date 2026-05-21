@@ -4,12 +4,12 @@ resource "aws_lambda_function" "api" {
   #checkov:skip=CKV_AWS_173:KMS env var encryption adds cost; DATABASE_URL from CI variable
   #checkov:skip=CKV_AWS_116:Synchronous HTTP API - failures return to caller, DLQ not needed
   #checkov:skip=CKV_AWS_115:Ensure that AWS Lambda function is configured for function-level concurrent execution limit
-  function_name                  = "${var.environment}-${var.function_name}"
-  role                           = var.lambda_role_arn
-  package_type                   = "Image"
-  image_uri                      = "${var.ecr_repo_url}:${var.image_tag}"
-  timeout                        = var.timeout
-  memory_size                    = var.memory_size
+  function_name = "${var.environment}-${var.function_name}"
+  role          = var.lambda_role_arn
+  package_type  = "Image"
+  image_uri     = "${var.ecr_repo_url}:${var.image_tag}"
+  timeout       = var.timeout
+  memory_size   = var.memory_size
   #reserved_concurrent_executions = var.reserved_concurrency
 
   vpc_config {
