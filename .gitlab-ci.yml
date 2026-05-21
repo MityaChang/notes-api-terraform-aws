@@ -96,7 +96,7 @@ terraform-plan:
   extends: .aws_oidc
   script:
     - cd $TF_DIR
-    - terraform init
+    - terraform init -backend-config="assume_role={role_arn=\"$PROVIDER\"}"
     - terraform plan -var="app_image_tag=$CI_COMMIT_SHORT_SHA" -out=tfplan
   artifacts:
     paths:
@@ -113,7 +113,7 @@ terraform-apply:
   extends: .aws_oidc
   script:
     - cd $TF_DIR
-    - terraform init
+    - terraform init -backend-config="assume_role={role_arn=\"$PROVIDER\"}"
     - terraform apply tfplan
   dependencies:
     - terraform-plan
