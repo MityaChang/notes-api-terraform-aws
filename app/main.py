@@ -6,7 +6,7 @@ from mangum import Mangum
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import get_db
+from app.database import get_db, engine, Base
 from app.models import Note
 from app.schemas import NoteCreate, NoteUpdate, NoteResponse
 
@@ -22,6 +22,9 @@ logger.handlers = [handler]
 logger.setLevel(settings.log_level)
 
 app = FastAPI(title="Notes API", version="1.0.0")
+
+# Create tables if they don't exist
+Base.metadata.create_all(bind=engine)
 
 
 @app.get("/health")
