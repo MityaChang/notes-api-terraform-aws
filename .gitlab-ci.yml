@@ -11,8 +11,8 @@ variables:
   AWS_DEFAULT_REGION: ap-southeast-1
   TF_VAR_provider_arn: $PROVIDER
 
-# OIDC role assumption for AWS — requires CI variable ROLE_ARN
-.aws_oidc: &aws_oidc
+# OIDC role assumption for AWS - requires CI variable ROLE_ARN
+.aws_oidc:
   id_tokens:
     GITLAB_OIDC_TOKEN:
       aud: https://gitlab.com
@@ -61,7 +61,7 @@ build-image:
     - docker:24-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-  <<: *aws_oidc
+  extends: .aws_oidc
   script:
     - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
     - cd $APP_DIR
@@ -75,7 +75,7 @@ build-image:
 terraform-plan:
   stage: plan
   image: hashicorp/terraform:1.5
-  <<: *aws_oidc
+  extends: .aws_oidc
   script:
     - cd $TF_DIR
     - terraform init
@@ -92,7 +92,7 @@ terraform-plan:
 terraform-apply:
   stage: deploy
   image: hashicorp/terraform:1.5
-  <<: *aws_oidc
+  extends: .aws_oidc
   script:
     - cd $TF_DIR
     - terraform init
