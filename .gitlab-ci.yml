@@ -8,6 +8,23 @@ variables:
   TF_DIR: terraform/environments/dev
   APP_DIR: app
   TF_IN_AUTOMATION: "true"
+  AWS_DEFAULT_REGION: ap-southeast-1
+
+# OIDC role assumption for AWS — requires CI variable ROLE_ARN
+.aws_oidc: &aws_oidc
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+  before_script:
+    - >
+      export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s"
+      $(aws sts assume-role-with-web-identity
+      --role-arn $ROLE_ARN
+      --role-session-name "gitlab-ci-${CI_PROJECT_ID}-${CI_PIPELINE_ID}"
+      --web-identity-token $GITLAB_OIDC_TOKEN
+      --duration-seconds 3600
+      --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]"
+      --output text))
 
 # --- Validate Stage ---
 
@@ -43,10 +60,9 @@ build-image:
     - docker:24-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-  before_script:
-    - apk add --no-cache aws-cli
-    - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
+  <<: *aws_oidc
   script:
+    - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
     - cd $APP_DIR
     - docker build -t $ECR_REPO_URL:$CI_COMMIT_SHORT_SHA .
     - docker push $ECR_REPO_URL:$CI_COMMIT_SHORT_SHA
@@ -58,6 +74,7 @@ build-image:
 terraform-plan:
   stage: plan
   image: hashicorp/terraform:1.5
+  <<: *aws_oidc
   script:
     - cd $TF_DIR
     - terraform init
@@ -74,6 +91,7 @@ terraform-plan:
 terraform-apply:
   stage: deploy
   image: hashicorp/terraform:1.5
+  <<: *aws_oidc
   script:
     - cd $TF_DIR
     - terraform init
