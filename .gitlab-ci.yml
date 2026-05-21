@@ -131,7 +131,7 @@ container-security:
   script:
     - ECR_REPO_URL="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}"
     - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
-    - trivy image --exit-code 1 --severity HIGH,CRITICAL --no-progress $ECR_REPO_URL:$CI_COMMIT_SHORT_SHA
+    - trivy image --exit-code 1 --severity HIGH,CRITICAL --ignorefile .trivyignore --no-progress $ECR_REPO_URL:$CI_COMMIT_SHORT_SHA
   needs:
     - build-image
   allow_failure: true

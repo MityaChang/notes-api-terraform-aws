@@ -1,0 +1,6 @@
+# Base image vulnerabilities (public.ecr.aws/lambda/python:3.11)
+
+# These are in build tools, not runtime dependencies, and not exploitable in our Lambda context.
+
+CVE-2026-23949
+CVE-2026-24049
