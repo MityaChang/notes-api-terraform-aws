@@ -65,7 +65,20 @@ build-image:
     - docker:24-dind
   variables:
     DOCKER_TLS_CERTDIR: "/certs"
-  extends: .aws_oidc
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+  before_script:
+    - apk add --no-cache aws-cli
+    - >
+      export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s"
+      $(aws sts assume-role-with-web-identity
+      --role-arn $ROLE_ARN
+      --role-session-name "gitlab-ci-${CI_PROJECT_ID}-${CI_PIPELINE_ID}"
+      --web-identity-token $GITLAB_OIDC_TOKEN
+      --duration-seconds 3600
+      --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]"
+      --output text))
   script:
     - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
     - cd $APP_DIR
