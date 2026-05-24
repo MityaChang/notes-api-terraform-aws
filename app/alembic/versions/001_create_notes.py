@@ -1,10 +1,3 @@
-"""create notes table
-
-Revision ID: 001
-Revises:
-Create Date: 2026-05-20
-"""
-
 from alembic import op
 import sqlalchemy as sa
 

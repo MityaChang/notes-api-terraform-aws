@@ -2,54 +2,118 @@
 
 A production-ready CRUD REST API for managing notes, deployed on AWS using serverless compute (Lambda + API Gateway), backed by RDS PostgreSQL, and provisioned entirely via modular Terraform.
 
-## Architecture
+## Table of Contents
 
-```
-Client → API Gateway (HTTP API) → Lambda (FastAPI + Mangum) → RDS PostgreSQL
-              ↓                        ↓
-       Access Logs              Application Logs
-              ↓                        ↓
-                    CloudWatch Logs (30-day retention)
+- [Solution Overview](#solution-overview)
+- [Infrastructure](#infrastructure)
+  - [Infrastructure Architecture](#infrastructure-architecture)
+  - [CI/CD Architecture](#cicd-architecture)
+- [Technology Choices](#technology-choices)
+- [Prerequisites](#prerequisites)
+- [Project Structure](#project-structure)
+- [Usage](#usage)
+  - [Local Development](#local-development)
+  - [Deployment](#deployment)
+  - [CI/CD Pipeline](#cicd-pipeline)
+- [Multi-Environment Support](#multi-environment-support)
+- [Required CI Variables](#required-ci-variables)
+- [Verifying the System](#verifying-the-system)
+- [Where to Find Logs](#where-to-find-logs)
+- [Security](#security)
+- [Cost Considerations](#cost-considerations)
+- [Cleanup](#cleanup)
 
-ECR (container registry) ← GitLab CI (build + push)
-```
+---
+
+## Solution Overview
+
+This repository demonstrates a full-stack serverless application on AWS, provisioned with modular Terraform and deployed through a GitLab CI pipeline. It implements a single CRUD resource (notes) with attention to security, observability, and infrastructure best practices.
+
+---
+
+## Infrastructure
+
+### Infrastructure Architecture
+
+<p align="center">
+  <img src="resources/infra_diagram.png" alt="Infrastructure Architecture" />
+</p>
+
+**AWS Resources provisioned:**
+
+- 1 VPC with 2 private subnets (multi-AZ)
+- 1 ECR repository (container image registry)
+- 1 Lambda function (containerized FastAPI)
+- 1 API Gateway HTTP API (public-facing)
+- 1 RDS PostgreSQL instance (encrypted, private)
+- 3 CloudWatch Log Groups (Lambda, API Gateway, RDS)
+- 2 Security Groups (Lambda egress, RDS ingress)
+- IAM roles and policies (least privilege)
+
+### CI/CD Architecture
+
+<p align="center">
+  <img src="resources/cicd_diagram.png" alt="CI/CD Architecture" />
+</p>
 
 ## Technology Choices
 
-| Component  | Choice                          | Why                                                           |
+| Component  | Choice                          | Justification                                                 |
 | ---------- | ------------------------------- | ------------------------------------------------------------- |
-| Language   | Python 3.11 + FastAPI           | Lightweight, excellent Lambda support via Mangum              |
+| Language   | Python 3.11 + FastAPI           | Lightweight, excellent Lambda support via Mangum adapter      |
 | Compute    | Lambda + API Gateway (HTTP API) | Serverless, pay-per-request, zero idle cost                   |
 | Database   | RDS PostgreSQL (db.t3.micro)    | Relational, encrypted at rest, free-tier eligible             |
 | Deployment | Container image → ECR → Lambda  | Reproducible builds, satisfies container artifact requirement |
 | IaC        | Terraform (modular)             | Separate modules for network, compute, storage, IAM, logging  |
-| CI/CD      | GitLab CI                       | Plan artifact + manual deploy, no auto-apply                  |
+| CI/CD      | GitLab CI + OIDC                | Plan artifact + manual deploy, no long-lived AWS keys         |
+| Security   | Checkov + Bandit + Trivy        | IaC, SAST, and container vulnerability scanning               |
+
+---
 
 ## Prerequisites
 
-- [Terraform](https://www.terraform.io/downloads) >= 1.5
-- [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate credentials
-- [Docker](https://www.docker.com/) for building container images
-- Python 3.11+ (for local development)
+| Tool                                            | Version | Purpose                     |
+| ----------------------------------------------- | ------- | --------------------------- |
+| [Terraform](https://www.terraform.io/downloads) | >= 1.5  | Infrastructure provisioning |
+| [AWS CLI](https://aws.amazon.com/cli/)          | v2      | AWS credential management   |
+| [Docker](https://www.docker.com/)               | 24+     | Container image builds      |
+| [Python](https://www.python.org/)               | 3.11+   | Local development           |
+
+---
 
 ## Project Structure
 
 ```
-app/                     FastAPI application source
-terraform/
-  modules/
-    network/             VPC, subnets, security groups
-    compute/             Lambda, API Gateway
-    storage/             RDS PostgreSQL
-    iam/                 Lambda execution role and policies
-    logging/             CloudWatch log groups
-  environments/
-    dev/                 Root module for dev environment (includes ECR)
-.gitlab-ci.yml           CI/CD pipeline
-README.md                This file
+├── app/                            FastAPI application source
+│   ├── main.py                     API endpoints + Lambda handler
+│   ├── models.py                   SQLAlchemy ORM models
+│   ├── schemas.py                  Pydantic request/response schemas
+│   ├── config.py                   Environment-based configuration
+│   ├── database.py                 Database engine + session management
+│   ├── Dockerfile                  Lambda container image definition
+│   ├── requirements.txt            Python dependencies
+│   └── alembic/                    Database migrations
+├── terraform/
+│   ├── modules/
+│   │   ├── network/                VPC, subnets, security groups
+│   │   ├── compute/                Lambda, API Gateway
+│   │   ├── storage/                RDS PostgreSQL
+│   │   ├── iam/                    Lambda execution role and policies
+│   │   └── logging/                CloudWatch log groups
+│   └── environments/
+│       ├── dev/                    Development environment (active)
+│       ├── stg/                    Staging environment (template)
+│       └── prod/                   Production environment (template)
+├── .gitlab-ci.yml                  CI/CD pipeline definition
+├── .trivyignore                    Container scan exclusions
+└── README.md                       This file
 ```
 
-## Local Development
+---
+
+## Usage
+
+### Local Development
 
 ```bash
 cd app
@@ -99,23 +163,52 @@ uvicorn app.main:app --reload --port 8000
 
 ### CI/CD Pipeline
 
-The GitLab CI pipeline runs automatically on push to the default branch:
+The GitLab CI pipeline runs automatically on push:
 
-1. **validate** — `terraform fmt`, `terraform validate`, Python linting (ruff)
-2. **build** — Builds Docker image, pushes to ECR (tagged with commit SHA)
-3. **plan** — Generates `terraform plan` artifact for review
-4. **deploy** — Manual trigger to apply the plan
+| Stage        | Jobs                                                                                          | Purpose                                  |
+| ------------ | --------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| **validate** | `terraform-fmt`, `terraform-validate`, `python-lint`, `python-security`, `terraform-security` | Code quality + security scanning         |
+| **build**    | `build-image`, `container-security`                                                           | Build container, push to ECR, Trivy scan |
+| **plan**     | `terraform-plan`                                                                              | Generate plan artifact for review        |
+| **deploy**   | `terraform-apply`                                                                             | **Manual trigger** to apply changes      |
+
+> **Note:** The deploy stage requires manual approval — no automatic applies on merge.
+
+---
+
+## Multi-Environment Support
+
+The `terraform/environments/` directory supports multiple isolated environments sharing the same modules:
+
+```
+terraform/environments/
+├── dev/        ← Active (fully configured)
+├── stg/        ← Template (copy from dev, adjust variables)
+└── prod/       ← Template (copy from dev, harden settings)
+```
+
+Each environment has:
+
+- Its own Terraform state file (independent apply/destroy)
+- Its own variable values (instance sizes, retention, feature flags)
+- Its own CI/CD pipeline stage or branch rules
+
+See the README in each environment folder for specific instructions on what to modify.
+
+---
 
 ## Required CI Variables
 
-Configure these in GitLab → Settings → CI/CD → Variables:
+Configure these in **GitLab → Settings → CI/CD → Variables**:
 
-| Variable             | Type              | Description                                           |
-| -------------------- | ----------------- | ----------------------------------------------------- |
-| `PROVIDER`           | Variable          | IAM role ARN for OIDC-based AWS credential assumption |
-| `AWS_ACCOUNT_ID`     | Variable          | AWS account ID (e.g., `760638704957`)                 |
-| `ECR_REPO_NAME`      | Variable          | ECR repository name (e.g., `dev-notes-api`)           |
-| `TF_VAR_db_password` | Variable (masked) | RDS master password                                   |
+| Variable             | Type     | Protected | Masked | Description                                           |
+| -------------------- | -------- | --------- | ------ | ----------------------------------------------------- |
+| `PROVIDER`           | Variable | ✓         |        | IAM role ARN for OIDC-based AWS credential assumption |
+| `AWS_ACCOUNT_ID`     | Variable | ✓         |        | AWS account ID (e.g., `760638704957`)                 |
+| `ECR_REPO_NAME`      | Variable |           |        | ECR repository name (e.g., `dev-notes-api`)           |
+| `TF_VAR_db_password` | Variable | ✓         | ✓      | RDS master password                                   |
+
+---
 
 ## Verifying the System
 
@@ -154,37 +247,54 @@ curl -X DELETE $API_URL/notes/<note-id>
 
 ## Where to Find Logs
 
-| Log Type                | Location                                                 |
-| ----------------------- | -------------------------------------------------------- |
-| Application logs        | CloudWatch → `/aws/lambda/dev-notes-api`                 |
-| API Gateway access logs | CloudWatch → `/aws/apigateway/dev-notes-api`             |
-| RDS PostgreSQL logs     | CloudWatch → `/aws/rds/instance/dev-notes-db/postgresql` |
+| Log Type                | CloudWatch Path                             | Retention |
+| ----------------------- | ------------------------------------------- | --------- |
+| Application logs        | `/aws/lambda/dev-notes-api`                 | 30 days   |
+| API Gateway access logs | `/aws/apigateway/dev-notes-api`             | 30 days   |
+| RDS PostgreSQL logs     | `/aws/rds/instance/dev-notes-db/postgresql` | 30 days   |
 
-All log groups have a **30-day retention** period.
-
-## Remote State Setup
-
-By default, Terraform uses local state. For team/production use:
-
-1. Create an S3 bucket with versioning enabled
-2. Create a DynamoDB table with partition key `LockID` (String type)
-3. Edit `terraform/environments/dev/backend.tf` — uncomment the S3 backend block
-4. Run `terraform init -migrate-state`
+---
 
 ## Security
 
-- **IAM:** Lambda role follows least privilege (scoped to specific resource ARNs)
-- **Network:** RDS in private subnets, no public access, SG allows only Lambda on port 5432
-- **Encryption:** RDS storage encrypted at rest (AWS-managed KMS key)
-- **Secrets:** DB password passed via CI variable, never committed to code
-- **No hardcoded credentials** in Terraform or application code
+| Layer           | Implementation                                                               |
+| --------------- | ---------------------------------------------------------------------------- |
+| **IAM**         | Lambda role follows least privilege — scoped to specific resource ARNs       |
+| **Network**     | RDS in private subnets, no public access, SG allows only Lambda on port 5432 |
+| **Encryption**  | RDS storage encrypted at rest (AWS-managed KMS key)                          |
+| **Secrets**     | DB password passed via masked CI variable, never committed to code           |
+| **Scanning**    | Checkov (IaC), Bandit (Python SAST), pip-audit (CVEs), Trivy (container)     |
+| **Credentials** | OIDC-based — no long-lived AWS access keys                                   |
+
+---
 
 ## Cost Considerations
 
-- **Lambda:** Free tier includes 1M requests/month — effectively free at low traffic
-- **API Gateway:** $1.00 per million requests
-- **RDS db.t3.micro:** Free-tier eligible (750 hrs/month for 12 months), ~$12/month after
-- **ECR:** 500 MB free storage, minimal cost for single image
-- **CloudWatch Logs:** First 5 GB ingestion/month free
+| Service         | Free Tier                 | After Free Tier       |
+| --------------- | ------------------------- | --------------------- |
+| Lambda          | 1M requests/month         | $0.20 per 1M requests |
+| API Gateway     | 1M requests/month         | $1.00 per 1M requests |
+| RDS db.t3.micro | 750 hrs/month (12 months) | ~$12/month            |
+| ECR             | 500 MB storage            | ~$0.10/GB/month       |
+| CloudWatch Logs | 5 GB ingestion/month      | $0.50/GB              |
 
-**Estimated monthly cost at low traffic:** $0–15 (mostly RDS after free tier)
+**Estimated monthly cost at low traffic:** $0–15 (mostly RDS after free tier expires)
+
+---
+
+## Cleanup
+
+To destroy all infrastructure resources:
+
+```bash
+cd terraform/environments/dev
+terraform destroy
+```
+
+> **Warning:** This will delete all resources including the RDS database and its data. Ensure you have backups if needed.
+
+---
+
+## License
+
+This project is provided as-is for demonstration and assessment purposes.

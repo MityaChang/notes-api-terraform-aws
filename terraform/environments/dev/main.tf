@@ -1,24 +1,9 @@
-terraform {
-  required_version = ">= 1.5.0"
-
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = var.aws_region
-}
-
 locals {
   function_name = "notes-api"
   api_name      = "notes-api"
 }
 
-# ECR Repository (defined here to avoid circular dependency between IAM and compute)
+# ECR Repository
 resource "aws_ecr_repository" "app" {
   #checkov:skip=CKV_AWS_136:AWS AES-256 default encryption sufficient for dev; KMS adds cost
   name                 = "${var.environment}-${local.function_name}"

@@ -9,7 +9,7 @@ terraform {
   }
 }
 
-# To use local state instead (e.g., for quick evaluator testing):
+# To use local state instead (for quick evaluator testing):
 # terraform {
 #   backend "local" {
 #     path = "terraform.tfstate"
