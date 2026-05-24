@@ -128,11 +128,31 @@ uvicorn app.main:app --reload --port 8000
 
 ## Deployment
 
+### Prerequisites for Remote State
+
+The default backend configuration uses S3 + DynamoDB for remote state and locking. This requires:
+
+- An S3 bucket (`notes-api-tf-state-ap-southeast-1`) with versioning enabled
+- A DynamoDB table (`terraform-state-lock`) with a `LockID` partition key
+- IAM permissions for your user to access both resources
+
+**For Testing locally:** If you don't have access to the remote state backend, switch to local state by editing `terraform/environments/dev/backend.tf`:
+
+```hcl
+# Comment out the S3 backend and uncomment local:
+terraform {
+  backend "local" {
+    path = "terraform.tfstate"
+  }
+}
+```
+
 ### First-Time Setup
 
 1. **Deploy infrastructure (creates ECR + all resources):**
 
    ```bash
+   # From the repository root:
    cd terraform/environments/dev
    terraform init
    terraform apply
@@ -219,7 +239,11 @@ cd terraform/environments/dev
 API_URL=$(terraform output -raw api_url)
 ```
 
-Test the endpoints:
+**Interactive API docs (fastest way to verify):**
+
+Open `$API_URL/docs` in your browser — Swagger UI lets you test all CRUD operations interactively without curl.
+
+Test the endpoints via CLI:
 
 ```bash
 # Health check
