@@ -165,7 +165,7 @@ terraform-apply:
   script:
     - cd $TF_DIR
     - terraform init
-    - terraform destroy -auto-approve
+    - terraform apply tfplan
   dependencies:
     - terraform-plan
   rules:
