@@ -19,3 +19,4 @@ class NoteResponse(BaseModel):
     title: str
     body: str
     created_at: datetime
+    updated_at: datetime | None = None

@@ -20,3 +20,9 @@ class Note(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        default=None,
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=True,
+    )

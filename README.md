@@ -149,13 +149,15 @@ terraform {
 
 ### First-Time Setup
 
-1. **Deploy infrastructure (creates ECR + all resources):**
+On a clean AWS environment, there is a bootstrap dependency: the CI build stage needs ECR to push images, and Lambda needs an image to exist. This is resolved with a phased first deployment:
+
+1. **Create ECR repository first:**
 
    ```bash
    # From the repository root:
    cd terraform/environments/dev
    terraform init
-   terraform apply
+   terraform apply -target=aws_ecr_repository.app
    ```
 
 2. **Build and push initial image:**
@@ -168,7 +170,7 @@ terraform {
    docker push $ECR_URL:latest
    ```
 
-3. **Update Lambda to use the image:**
+3. **Deploy all remaining infrastructure:**
 
    ```bash
    cd ../terraform/environments/dev
@@ -180,6 +182,8 @@ terraform {
    # Via a Lambda invocation or local connection through a bastion:
    alembic upgrade head
    ```
+
+> **Note:** After first time setupp, the CI/CD pipeline handles this automatically — the build stage pushes the image before the deploy stage runs `terraform apply`.
 
 ### CI/CD Pipeline
 

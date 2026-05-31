@@ -1,30 +1,41 @@
 import logging
 import sys
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Depends
 from mangum import Mangum
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.database import get_db, engine, Base
+from app.database import get_db
 from app.models import Note
 from app.schemas import NoteCreate, NoteUpdate, NoteResponse
 
 from pythonjsonlogger import jsonlogger
 
 logger = logging.getLogger()
-handler = logging.StreamHandler(sys.stdout)
+log_handler = logging.StreamHandler(sys.stdout)
 formatter = jsonlogger.JsonFormatter(
     fmt="%(asctime)s %(levelname)s %(name)s %(message)s"
 )
-handler.setFormatter(formatter)
-logger.handlers = [handler]
+log_handler.setFormatter(formatter)
+logger.handlers = [log_handler]
 logger.setLevel(settings.log_level)
 
 app = FastAPI(title="Notes API", version="1.0.0")
 
-# Create tables if they don't exist
-Base.metadata.create_all(bind=engine)
+
+def run_migrations():
+    """Run Alembic migrations programmatically (invoked via Lambda event)."""
+    from alembic.config import Config
+    from alembic import command
+    import os
+
+    alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
+    alembic_cfg.set_main_option(
+        "sqlalchemy.url", str(settings.database_url)
+    )
+    command.upgrade(alembic_cfg, "head")
 
 
 @app.get("/health")
@@ -64,6 +75,7 @@ def update_note(note_id: str, note_update: NoteUpdate, db: Session = Depends(get
         note.title = note_update.title
     if note_update.body is not None:
         note.body = note_update.body
+    note.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(note)
     logger.info("Note updated", extra={"note_id": note.id})
@@ -81,4 +93,12 @@ def delete_note(note_id: str, db: Session = Depends(get_db)):
 
 
 # Lambda handler
-handler = Mangum(app, lifespan="off")
+_mangum_handler = Mangum(app, lifespan="off")
+
+
+def handler(event, context):
+    """Lambda entrypoint — routes migration events or API requests."""
+    if event.get("action") == "migrate":
+        run_migrations()
+        return {"status": "migrations_complete"}
+    return _mangum_handler(event, context)

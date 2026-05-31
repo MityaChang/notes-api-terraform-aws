@@ -3,6 +3,7 @@ stages:
   - build
   - plan
   - deploy
+  - post-deploy
 
 variables:
   TF_DIR: terraform/environments/dev
@@ -168,5 +169,28 @@ terraform-apply:
     - terraform apply tfplan
   dependencies:
     - terraform-plan
+  rules:
+    - when: manual
+
+# --- Post-Deploy Stage ---
+
+db-migrate:
+  stage: post-deploy
+  image:
+    name: amazon/aws-cli:latest
+    entrypoint: [""]
+  extends: .aws_oidc
+  script:
+    - FUNCTION_NAME="${CI_ENVIRONMENT_SLUG:-dev}-notes-api"
+    - >
+      aws lambda invoke
+      --function-name $FUNCTION_NAME
+      --payload '{"action": "migrate"}'
+      --cli-binary-format raw-in-base64-out
+      /tmp/response.json
+    - cat /tmp/response.json
+    - grep -q "migrations_complete" /tmp/response.json
+  needs:
+    - terraform-apply
   rules:
     - when: manual
