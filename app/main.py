@@ -31,7 +31,9 @@ def run_migrations():
     from alembic import command
     import os
 
-    alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
+    app_dir = os.path.dirname(__file__)
+    alembic_cfg = Config(os.path.join(app_dir, "alembic.ini"))
+    alembic_cfg.set_main_option("script_location", os.path.join(app_dir, "alembic"))
     alembic_cfg.set_main_option(
         "sqlalchemy.url", str(settings.database_url)
     )
